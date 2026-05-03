@@ -16,11 +16,13 @@ const {
 } = require('./nearby');
 
 const WELCOME_MESSAGE =
-  `Welcome to 🚙 <b>SG EV Charging Lot Finder</b>! Find available EV charging spots and get notified when a full charger location opens up.\n\n` +
+  `Welcome to 🚙 <b>SG EV Charging Lot Finder</b>!\n` +
+  `Find available EV charging spots and get notified when they become available.\n\n` +
   `<b>Commands:</b>\n` +
   `🔍 Type <b>name / address / postal code</b> to search\n` +
   `📍 /nearby — Chargers near you\n` +
-  `🔔 /subs — My alerts`;
+  `🔔 /subs — My alerts\n\n` +
+  `Based on the original EVLotBot: @sglotbot`;
 const DATA_DISCLAIMER = 'Data: LTA DataMall. Prices may vary; check operator app.';
 
 const userCooldowns = new Map();
@@ -75,6 +77,7 @@ async function createBot(token) {
   try {
     await bot.telegram.setMyCommands([
       { command: 'start',           description: '👋 Welcome' },
+      { command: 'help',            description: 'ℹ️ Help' },
       { command: 'nearby',          description: '📍 Nearby chargers' },
       { command: 'subs',            description: '🔔 My alerts' },
     ]);
@@ -85,6 +88,9 @@ async function createBot(token) {
 
   // ── /start ────────────────────────────────────────────────────────────────
   bot.start(ctx => ctx.reply(WELCOME_MESSAGE, { parse_mode: 'HTML' }));
+
+  // ── /help ─────────────────────────────────────────────────────────────────
+  bot.command('help', ctx => ctx.reply(WELCOME_MESSAGE, { parse_mode: 'HTML' }));
 
   // ── /subs ─────────────────────────────────────────────────────────────────
   bot.command('subs', ctx => {

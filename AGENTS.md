@@ -9,6 +9,12 @@
 
 ## Decision Log
 
+### 2026-05-03: Add Help Command And Bot Credit
+
+- Decision: Add `/help` as an alias for the welcome/help text and credit the original bot in `/start`.
+- Reason: Users expect a help command, and attribution in the bot should be concise and non-disruptive.
+- Scope: Registered `/help`, reused the start message, and added `@sglotbot` credit.
+
 ### 2026-05-03: Rename User-Facing Subscriptions To Alerts
 
 - Decision: Keep `/subs` as the command but describe the feature as alerts in user-facing copy.
@@ -104,6 +110,7 @@
 
 ### 2026-05-03
 
+- Added `/help` and a concise original bot credit in the welcome message.
 - Renamed user-facing subscription copy to alerts and updated bot branding.
 - Added LTA DataMall and pricing disclaimer to availability/pricing views.
 - Changed `/nearby` results to provider-level options.
