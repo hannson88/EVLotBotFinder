@@ -9,6 +9,42 @@
 
 ## Decision Log
 
+### 2026-05-03: Show Nearby Provider-Level Options
+
+- Decision: Nearby search results are provider/location options rather than aggregated venue rows.
+- Reason: Provider affects app access, pricing, and availability; aggregating providers can mislead users.
+- Scope: Return one nearby row per lot/provider and show provider names in nearby message and button labels.
+
+### 2026-05-03: Compact Nearby Result Buttons
+
+- Decision: Limit nearby button venue names to 16 characters and show explicit AC/DC open counts.
+- Reason: Telegram buttons truncate on phones; compact labels should still communicate charger type and availability.
+- Scope: Updated nearby button formatting only; detailed result text remains unchanged.
+
+### 2026-05-03: Clarify Nearby Availability Sorting And Filters
+
+- Decision: Rename availability sorting to "Best chance" and add All/AC/DC filters.
+- Reason: "Most available" was ambiguous between raw open count and percentage available; users also need to narrow AC or DC charger choices.
+- Scope: Sort best chance by availability ratio, then open count, then distance; keep result buttons short with a venue hint and open count.
+
+### 2026-05-03: Add Nearby Sort Controls
+
+- Decision: Move nearby details into the message body and keep venue buttons short and numbered.
+- Reason: Telegram button labels truncate long text; users still need to compare distance, availability, and cost.
+- Scope: Added short-lived in-memory location cache, sort buttons for nearest/available/cheapest, and multiline result details.
+
+### 2026-05-03: Enrich Nearby Search Results
+
+- Decision: Show distance, AC/DC live counts, and the lowest visible price in nearby result buttons.
+- Reason: Nearby users may choose based on proximity, vacancy, or cost; compact labels reduce extra taps.
+- Scope: Enriched the venue query and result label formatter; removed the location-share reply keyboard after location is received.
+
+### 2026-05-03: Add Nearby Charger Search
+
+- Decision: Add `/nearby` with Telegram location sharing and a 3 km venue search radius.
+- Reason: Users can find chargers near their current position without typing an address.
+- Scope: Use existing LTA latitude/longitude data, do not store user locations, return up to 10 nearby venues, and reuse the existing venue detail/subscription flow.
+
 ### 2026-05-03: Add Throttled Admin Error Alerts
 
 - Decision: Send Telegram alerts to `ADMIN_CHAT_ID` for high-signal runtime failures.
@@ -56,6 +92,12 @@
 
 ### 2026-05-03
 
+- Changed `/nearby` results to provider-level options.
+- Shortened `/nearby` result buttons and made AC/DC open counts explicit.
+- Added AC/DC nearby filters and clarified availability sorting as best chance.
+- Added `/nearby` sort controls for nearest, best chance, and cheapest.
+- Enriched `/nearby` result labels with distance, availability, and price.
+- Added `/nearby` location-based charger search.
 - Added throttled Telegram admin alerts for important runtime failures.
 - Added optional `POLL_INTERVAL_MINUTES` configuration.
 - Added an in-memory guard to skip overlapping poll cycles.

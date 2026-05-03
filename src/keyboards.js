@@ -1,7 +1,7 @@
 'use strict';
 
 // Pick a venue from search results — one button per unique location_name
-function searchResultsKeyboard(lots, action) {
+function searchResultsKeyboard(lots, action, labelForLot = lot => lot.location_name || lot.name) {
   const seen = new Set();
   const rows = [];
   for (const lot of lots) {
@@ -9,7 +9,7 @@ function searchResultsKeyboard(lots, action) {
     if (seen.has(locationName)) continue;
     seen.add(locationName);
     // Use lot id in callback — avoids length issues with long location names
-    rows.push([{ text: `📍 ${locationName}`, callback_data: `pick_venue:${action}:id:${lot.id}` }]);
+    rows.push([{ text: `📍 ${labelForLot(lot)}`, callback_data: `pick_venue:${action}:id:${lot.id}` }]);
   }
   return { reply_markup: { inline_keyboard: rows } };
 }
@@ -46,8 +46,44 @@ function subscriptionListKeyboard(subscriptions) {
   };
 }
 
+function requestLocationKeyboard() {
+  return {
+    reply_markup: {
+      keyboard: [[{ text: 'Share my location', request_location: true }]],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    },
+  };
+}
+
+function nearbyResultsKeyboard(venues, sortMode, chargeFilter, labelForVenue) {
+  const rows = [];
+  for (let i = 0; i < venues.length; i++) {
+    rows.push([{
+      text: labelForVenue(venues[i], i),
+      callback_data: `pick_venue:subscribe:id:${venues[i].id}`,
+    }]);
+  }
+
+  rows.push([
+    { text: chargeFilter === 'all' ? '✓ All' : 'All', callback_data: 'nearby_filter:all' },
+    { text: chargeFilter === 'ac' ? '✓ AC' : 'AC', callback_data: 'nearby_filter:ac' },
+    { text: chargeFilter === 'dc' ? '✓ DC' : 'DC', callback_data: 'nearby_filter:dc' },
+  ]);
+
+  rows.push([
+    { text: sortMode === 'nearest' ? '✓ Nearest' : 'Nearest', callback_data: 'nearby_sort:nearest' },
+    { text: sortMode === 'chance' ? '✓ Chance' : 'Chance', callback_data: 'nearby_sort:chance' },
+    { text: sortMode === 'cheapest' ? '✓ Cheapest' : 'Cheapest', callback_data: 'nearby_sort:cheapest' },
+  ]);
+
+  return { reply_markup: { inline_keyboard: rows } };
+}
+
 module.exports = {
   searchResultsKeyboard,
   confirmSubscribeKeyboard,
-  subscriptionListKeyboard
+  subscriptionListKeyboard,
+  requestLocationKeyboard,
+  nearbyResultsKeyboard
 };

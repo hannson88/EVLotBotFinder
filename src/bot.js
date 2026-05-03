@@ -5,16 +5,30 @@ const db = require('./db');
 const kb = require('./keyboards');
 
 const { operatorLabel } = require('./operators');
+const {
+  findNearbyVenues,
+  chargeFilterLabel,
+  formatNearbyButtonLabel,
+  formatNearbyVenueLine,
+  normalizeChargeFilter,
+  normalizeSortMode,
+  sortModeLabel,
+} = require('./nearby');
 
 const WELCOME_MESSAGE =
   `Welcome to 🚙 <b>EVLotBot</b>! Find available EV charging spots and get notified when they become available.\n\n` +
   `<b>Commands:</b>\n` +
   `🔍 Type in <b>name / address / postal code</b> to search\n` +
+  `📍 /nearby — Chargers near you\n` +
   `🔔 /subs — Subscriptions`;
 
 const userCooldowns = new Map();
 const COOLDOWN_MS = 2000;
 const ADMIN_CHAT_ID = parseInt(process.env.ADMIN_CHAT_ID, 10);
+const NEARBY_RADIUS_KM = 3;
+const NEARBY_LIMIT = 10;
+const NEARBY_CACHE_MS = 10 * 60 * 1000;
+const nearbySearches = new Map();
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -33,6 +47,26 @@ function isRateLimited(chatId) {
   return false;
 }
 
+function cacheNearbySearch(chatId, latitude, longitude) {
+  nearbySearches.set(chatId, {
+    latitude,
+    longitude,
+    sortMode: 'nearest',
+    chargeFilter: 'all',
+    createdAt: Date.now(),
+  });
+}
+
+function getCachedNearbySearch(chatId) {
+  const cached = nearbySearches.get(chatId);
+  if (!cached) return null;
+  if (Date.now() - cached.createdAt > NEARBY_CACHE_MS) {
+    nearbySearches.delete(chatId);
+    return null;
+  }
+  return cached;
+}
+
 async function createBot(token) {
   const bot = new Telegraf(token);
 
@@ -40,6 +74,7 @@ async function createBot(token) {
   try {
     await bot.telegram.setMyCommands([
       { command: 'start',           description: '👋 Welcome' },
+      { command: 'nearby',          description: '📍 Nearby chargers' },
       { command: 'subs',            description: '🔔 Subscriptions' },
     ]);
     console.log('[bot] Commands registered with Telegram');
@@ -62,6 +97,14 @@ async function createBot(token) {
       return { ...sub, display: `${loc} | ${op} (${sub.charge_type})` };
     });
     return ctx.reply('Your subscriptions (tap to unsubscribe):', kb.subscriptionListKeyboard(enriched));
+  });
+
+  // ── /nearby ───────────────────────────────────────────────────────────────
+  bot.command('nearby', ctx => {
+    return ctx.reply(
+      `Share your current location to find chargers within ${NEARBY_RADIUS_KM} km.`,
+      kb.requestLocationKeyboard()
+    );
   });
 
   // ── Admin commands ────────────────────────────────────────────────────────
@@ -131,6 +174,101 @@ async function createBot(token) {
       return ctx.reply('No lots found. Try a different keyword.');
     }
     return ctx.reply('Select to view details:', kb.searchResultsKeyboard(lots, 'subscribe'));
+  });
+
+  // ── Shared location search ────────────────────────────────────────────────
+  bot.on('location', async ctx => {
+    if (isRateLimited(ctx.chat.id)) return;
+
+    const { latitude, longitude } = ctx.message.location;
+    cacheNearbySearch(ctx.chat.id, latitude, longitude);
+    await ctx.reply('Searching nearby chargers...', { reply_markup: { remove_keyboard: true } });
+    return sendNearbyResults(ctx, latitude, longitude, 'nearest', 'all');
+  });
+
+  function updateCachedNearbySearch(chatId, updates) {
+    const cached = getCachedNearbySearch(chatId);
+    if (!cached) return null;
+    const updated = { ...cached, ...updates, createdAt: Date.now() };
+    nearbySearches.set(chatId, updated);
+    return updated;
+  }
+
+  function buildNearbyResults(latitude, longitude, sortMode, chargeFilter) {
+    const venues = db.getVenueLocationsWithCoordinates();
+    return findNearbyVenues(venues, latitude, longitude, NEARBY_RADIUS_KM, NEARBY_LIMIT, sortMode, chargeFilter);
+  }
+
+  function formatNearbyResultsMessage(nearby, sortMode, chargeFilter) {
+    const lines = [
+      `<b>Nearby chargers within ${NEARBY_RADIUS_KM} km</b>`,
+      `Type: ${chargeFilterLabel(chargeFilter)} · Sorted by: ${sortModeLabel(sortMode)}`,
+      '',
+      ...nearby.map((venue, index) => formatNearbyVenueLine(venue, index, chargeFilter)),
+      '',
+      'Tap a result to view details.',
+    ];
+
+    return lines.join('\n');
+  }
+
+  function nearbyReplyOptions(nearby, sortMode, chargeFilter) {
+    return {
+      parse_mode: 'HTML',
+      ...kb.nearbyResultsKeyboard(
+        nearby,
+        sortMode,
+        chargeFilter,
+        (venue, index) => formatNearbyButtonLabel(venue, index, chargeFilter)
+      ),
+    };
+  }
+
+  function sendNearbyResults(ctx, latitude, longitude, rawSortMode, rawChargeFilter) {
+    const sortMode = normalizeSortMode(rawSortMode);
+    const chargeFilter = normalizeChargeFilter(rawChargeFilter);
+    const nearby = buildNearbyResults(latitude, longitude, sortMode, chargeFilter);
+
+    if (nearby.length === 0) {
+      return ctx.reply(
+        `No ${chargeFilterLabel(chargeFilter)} chargers found within ${NEARBY_RADIUS_KM} km of your location.`,
+        { reply_markup: { remove_keyboard: true } }
+      );
+    }
+
+    return ctx.reply(formatNearbyResultsMessage(nearby, sortMode, chargeFilter), nearbyReplyOptions(nearby, sortMode, chargeFilter));
+  }
+
+  function editNearbyResults(ctx, latitude, longitude, rawSortMode, rawChargeFilter) {
+    const sortMode = normalizeSortMode(rawSortMode);
+    const chargeFilter = normalizeChargeFilter(rawChargeFilter);
+    const nearby = buildNearbyResults(latitude, longitude, sortMode, chargeFilter);
+
+    if (nearby.length === 0) {
+      return ctx.editMessageText(`No ${chargeFilterLabel(chargeFilter)} chargers found within ${NEARBY_RADIUS_KM} km of your location.`);
+    }
+
+    return ctx.editMessageText(formatNearbyResultsMessage(nearby, sortMode, chargeFilter), nearbyReplyOptions(nearby, sortMode, chargeFilter));
+  }
+
+  bot.action(/^nearby_sort:(nearest|chance|cheapest)$/, ctx => {
+    const cached = updateCachedNearbySearch(ctx.chat.id, { sortMode: ctx.match[1] });
+    if (!cached) {
+      return ctx.answerCbQuery('Please share your location again.', { show_alert: true });
+    }
+
+    ctx.answerCbQuery();
+    return editNearbyResults(ctx, cached.latitude, cached.longitude, cached.sortMode, cached.chargeFilter);
+  });
+
+  bot.action(/^nearby_filter:(all|ac|dc)$/, ctx => {
+    const cached = updateCachedNearbySearch(ctx.chat.id, { chargeFilter: ctx.match[1] });
+    if (!cached) {
+      return ctx.answerCbQuery('Please share your location again.', { show_alert: true });
+    }
+
+    ctx.answerCbQuery();
+    return editNearbyResults(ctx, cached.latitude, cached.longitude, cached.sortMode, cached.chargeFilter);
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -279,6 +279,27 @@ function getLotsByLotId(lotId) {
     .all(lotId);
 }
 
+function getVenueLocationsWithCoordinates() {
+  return getDb()
+    .prepare(`
+      SELECT l.id, l.location_name, l.address, l.operator,
+             l.latitude, l.longitude,
+             SUM(CASE WHEN a.charge_type = 'AC' THEN a.available_count ELSE 0 END) AS ac_available_count,
+             SUM(CASE WHEN a.charge_type = 'AC' THEN a.total_count ELSE 0 END) AS ac_total,
+             SUM(CASE WHEN a.charge_type = 'DC' THEN a.available_count ELSE 0 END) AS dc_available_count,
+             SUM(CASE WHEN a.charge_type = 'DC' THEN a.total_count ELSE 0 END) AS dc_total,
+             GROUP_CONCAT(DISTINCT a.price_info) AS price_info
+      FROM lots l
+      JOIN availability_state a ON a.lot_name = l.name
+      WHERE l.latitude IS NOT NULL
+        AND l.longitude IS NOT NULL
+        AND l.location_name IS NOT NULL
+      GROUP BY l.id
+      ORDER BY l.location_name, l.operator
+    `)
+    .all();
+}
+
 // ── Subscriptions ─────────────────────────────────────────────────────────────
 
 function addSubscription(chatId, lotName, chargeType) {
@@ -420,6 +441,7 @@ module.exports = {
   getLotsByPostalCode,
   getLotsByLocationName,
   getLotsByLotId,
+  getVenueLocationsWithCoordinates,
   addSubscription,
   removeSubscription,
   removeSubscriptionsForLot,
