@@ -16,11 +16,11 @@ const {
 } = require('./nearby');
 
 const WELCOME_MESSAGE =
-  `Welcome to 🚙 <b>EVLotBot</b>! Find available EV charging spots and get notified when they become available.\n\n` +
+  `Welcome to 🚙 <b>SG EV Charging Lot Finder</b>! Find available EV charging spots and get notified when a full charger location opens up.\n\n` +
   `<b>Commands:</b>\n` +
-  `🔍 Type in <b>name / address / postal code</b> to search\n` +
+  `🔍 Type <b>name / address / postal code</b> to search\n` +
   `📍 /nearby — Chargers near you\n` +
-  `🔔 /subs — Subscriptions`;
+  `🔔 /subs — My alerts`;
 const DATA_DISCLAIMER = 'Data: LTA DataMall. Prices may vary; check operator app.';
 
 const userCooldowns = new Map();
@@ -76,7 +76,7 @@ async function createBot(token) {
     await bot.telegram.setMyCommands([
       { command: 'start',           description: '👋 Welcome' },
       { command: 'nearby',          description: '📍 Nearby chargers' },
-      { command: 'subs',            description: '🔔 Subscriptions' },
+      { command: 'subs',            description: '🔔 My alerts' },
     ]);
     console.log('[bot] Commands registered with Telegram');
   } catch (err) {
@@ -90,14 +90,14 @@ async function createBot(token) {
   bot.command('subs', ctx => {
     const subs = db.getSubscriptionsByChatId(ctx.chat.id);
     if (subs.length === 0) {
-      return ctx.reply('You have no active subscriptions.\nType a name, address or postal code to search for a lot.');
+      return ctx.reply('You have no active alerts.\nType a name, address or postal code to search for a charger.');
     }
     const enriched = subs.map(sub => {
       const loc = sub.location_name || sub.lot_name.split('|||')[0];
       const op  = operatorLabel(sub.operator || sub.lot_name.split('|||')[1] || '');
       return { ...sub, display: `${loc} | ${op} (${sub.charge_type})` };
     });
-    return ctx.reply('Your subscriptions (tap to unsubscribe):', kb.subscriptionListKeyboard(enriched));
+    return ctx.reply('Your alerts (tap to remove):', kb.subscriptionListKeyboard(enriched));
   });
 
   // ── /nearby ───────────────────────────────────────────────────────────────
@@ -357,7 +357,7 @@ async function createBot(token) {
     lines.push(`<i>${DATA_DISCLAIMER}</i>`);
     lines.push('');
     if (buttonRows.length) {
-      lines.push('Subscribe to alerts:');
+      lines.push('Get notified when available:');
       buttonRows.push([{ text: '❌ Cancel', style: 'danger', callback_data: 'cancel_sub' }]);
     }
     return ctx.editMessageText(lines.join('\n'), {
@@ -390,14 +390,14 @@ async function createBot(token) {
         return ctx.answerCbQuery('Subscription limit reached. Please try again later.', { show_alert: true });
       }
       if (db.getSubscriptionCountByChatId(ctx.chat.id) >= maxPerUser) {
-        return ctx.answerCbQuery('You have reached the maximum number of subscriptions. Please remove existing ones first.', { show_alert: true });
+        return ctx.answerCbQuery('You have reached the maximum number of alerts. Please remove existing ones first.', { show_alert: true });
       }
     }
 
     db.addSubscription(ctx.chat.id, lot.name, chargeType);
 
     const lines = [
-      `Subscribed! You'll be notified when the charger becomes available.`,
+      `Alert set. You'll be notified when this charger becomes available.`,
       '',
       `<b>Location:</b> ${escapeHtml(locName)}`,
     ];
@@ -406,7 +406,7 @@ async function createBot(token) {
     lines.push('', 'Use /subs to manage your alerts.');
 
     ctx.editMessageText(lines.join('\n'), { parse_mode: 'HTML' });
-    return ctx.answerCbQuery('Subscribed!');
+    return ctx.answerCbQuery('Alert set!');
   });
 
   // ── Callback: cancel subscription flow ────────────────────────────────────
@@ -437,15 +437,15 @@ async function createBot(token) {
       return { ...sub, display: `${loc} | ${op} (${sub.charge_type})` };
     });
     const lines = [
-      `Unsubscribed from <b>${chargeType}</b> alerts.`,
+      `Removed <b>${chargeType}</b> alert.`,
       '',
-      `Your subscriptions (tap to unsubscribe):`,
+      `Your alerts (tap to remove):`,
     ];
 
     return ctx.editMessageText(
       subs.length > 0
         ? lines.join('\n')
-        : `Unsubscribed from <b>${chargeType}</b> alerts.\n\nYou have no active subscriptions.`,
+        : `Removed <b>${chargeType}</b> alert.\n\nYou have no active alerts.`,
       {
         parse_mode: 'HTML',
         ...kb.subscriptionListKeyboard(enriched),
@@ -459,7 +459,7 @@ async function createBot(token) {
   // Catch-all for unknown slash commands
   bot.on('text', ctx => {
     if (ctx.message.text.startsWith('/')) {
-      ctx.reply('Unknown command. Use /subs to manage subscriptions, or type a name to search.');
+      ctx.reply('Unknown command. Use /subs to manage alerts, or type a name to search.');
     }
   });
 

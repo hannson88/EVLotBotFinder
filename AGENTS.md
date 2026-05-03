@@ -9,6 +9,12 @@
 
 ## Decision Log
 
+### 2026-05-03: Rename User-Facing Subscriptions To Alerts
+
+- Decision: Keep `/subs` as the command but describe the feature as alerts in user-facing copy.
+- Reason: The bot notifies users when unavailable chargers become available; "subscriptions" is less intuitive.
+- Scope: Updated welcome text, command description, alert list, alert setup, removal, and unknown-command messages.
+
 ### 2026-05-03: Add Data Source Disclaimer
 
 - Decision: Show a compact LTA/pricing disclaimer on nearby results and venue detail messages.
@@ -98,6 +104,7 @@
 
 ### 2026-05-03
 
+- Renamed user-facing subscription copy to alerts and updated bot branding.
 - Added LTA DataMall and pricing disclaimer to availability/pricing views.
 - Changed `/nearby` results to provider-level options.
 - Shortened `/nearby` result buttons and made AC/DC open counts explicit.
