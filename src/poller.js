@@ -4,6 +4,7 @@ const axios = require('axios');
 const db = require('./db');
 const { toTitleCase } = db;
 const { operatorLabel } = require('./operators');
+const { sendAdminAlert } = require('./adminAlerts');
 
 const LTA_BATCH_URL = 'https://datamall2.mytransport.sg/ltaodataservice/EVCBatch';
 const LTA_ACCOUNT_KEY = process.env.LTA_ACCOUNT_KEY;
@@ -169,6 +170,7 @@ async function runPollCycle(bot) {
     evData = await fetchEVData();
   } catch (err) {
     console.error('[poller] Failed to fetch EV data:', err.message);
+    await sendAdminAlert(bot, 'lta-fetch-failed', `EVLotBot could not fetch LTA EV data: ${err.message}`);
     return;
   }
 

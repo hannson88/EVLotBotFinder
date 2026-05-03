@@ -5,6 +5,7 @@ require('dotenv').config();
 const cron = require('node-cron');
 const { createBot } = require('./bot');
 const { runPollCycle } = require('./poller');
+const { sendAdminAlert } = require('./adminAlerts');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const LTA_ACCOUNT_KEY = process.env.LTA_ACCOUNT_KEY;
@@ -54,12 +55,20 @@ async function main() {
   // baseline availability states. No notifications are sent on this first run.
   runGuardedPoll(bot, 'startup')
     .then(() => console.log('[startup] Initial poll complete'))
-    .catch(err => console.error('[startup] Initial poll failed:', err.message));
+    .catch(async err => {
+      console.error('[startup] Initial poll failed:', err.message);
+      await sendAdminAlert(bot, 'startup-poll-failed', `EVLotBot startup poll failed: ${err.message}`);
+    });
 
   // Schedule recurring polls
   cron.schedule(`*/${POLL_INTERVAL} * * * *`, async () => {
     console.log(`[cron] Poll cycle starting at ${new Date().toISOString()}`);
-    await runGuardedPoll(bot, 'cron');
+    try {
+      await runGuardedPoll(bot, 'cron');
+    } catch (err) {
+      console.error('[cron] Poll cycle failed:', err.message);
+      await sendAdminAlert(bot, 'cron-poll-failed', `EVLotBot poll cycle failed: ${err.message}`);
+    }
   });
 
   bot.launch()

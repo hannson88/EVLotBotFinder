@@ -9,6 +9,12 @@
 
 ## Decision Log
 
+### 2026-05-03: Add Throttled Admin Error Alerts
+
+- Decision: Send Telegram alerts to `ADMIN_CHAT_ID` for high-signal runtime failures.
+- Reason: Important poll and LTA fetch failures should be visible without manually watching PM2 logs.
+- Scope: Added `src/adminAlerts.js` with 30-minute per-key throttling; wired startup poll, scheduled poll, and LTA fetch failures.
+
 ### 2026-05-03: Make Poll Interval Configurable
 
 - Decision: Add optional `POLL_INTERVAL_MINUTES` configuration with a default of 5.
@@ -46,14 +52,11 @@
 - Reason: LTA-provided values such as locations, addresses, operators, prices, and positions can contain HTML-sensitive characters that may break Telegram rendering.
 - Scope: Added small local `escapeHtml` helpers in `src/bot.js` and `src/poller.js`, then applied them only at dynamic HTML message call sites.
 
-## Later Work
-
-- Add throttled Telegram admin alerts for important runtime failures, such as repeated LTA API failures or poll-cycle errors, without spamming `ADMIN_CHAT_ID`.
-
 ## Change Log
 
 ### 2026-05-03
 
+- Added throttled Telegram admin alerts for important runtime failures.
 - Added optional `POLL_INTERVAL_MINUTES` configuration.
 - Added an in-memory guard to skip overlapping poll cycles.
 - Kept failed notification recipients subscribed for future retry.
