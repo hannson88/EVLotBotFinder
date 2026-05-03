@@ -8,6 +8,14 @@ const { operatorLabel } = require('./operators');
 const LTA_BATCH_URL = 'https://datamall2.mytransport.sg/ltaodataservice/EVCBatch';
 const LTA_ACCOUNT_KEY = process.env.LTA_ACCOUNT_KEY;
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ── Availability computation ──────────────────────────────────────────────────
 // For a given array of chargingPoints (one operator's slice), compute:
 //   - which charger types (AC/DC) are present
@@ -106,19 +114,23 @@ async function dispatchNotifications(bot, lotName, locationName, address, operat
   const operatorDisplay = operator ? operatorLabel(operator) : null;
 
   const mapsUrl = latitude && longitude ? `https://www.google.com/maps?q=${latitude},${longitude}` : null;
-  const addressLink = mapsUrl ? `<a href="${mapsUrl}">${displayAddress}</a>` : displayAddress;
+  const addressLink = mapsUrl
+    ? `<a href="${escapeHtml(mapsUrl)}">${escapeHtml(displayAddress)}</a>`
+    : escapeHtml(displayAddress);
+  const positionText = positions.map(escapeHtml).join(', ');
 
   const message =
-    `<b>⚡ EV Charger @ ${displayLocation} Available! ⚡</b>\n\n` +
-    `📍 <b>Location:</b> ${displayLocation}\n` +
+    `<b>⚡ EV Charger @ ${escapeHtml(displayLocation)} Available! ⚡</b>\n\n` +
+    `📍 <b>Location:</b> ${escapeHtml(displayLocation)}\n` +
     `🏢 <b>Address:</b> ${addressLink}\n` +
-    (operatorDisplay ? `🔌 <b>Operator:</b> ${operatorDisplay}\n` : '') +
-    (positions.length ? `🅿️ <b>Position:</b> ${positions.join(', ')}\n` : '') +
+    (operatorDisplay ? `🔌 <b>Operator:</b> ${escapeHtml(operatorDisplay)}\n` : '') +
+    (positions.length ? `🅿️ <b>Position:</b> ${positionText}\n` : '') +
     `⚡ <b>Type:</b> ${chargeType}\n` +
-    `💰 <b>Cost:</b> ${price || 'N/A'}\n\n` +
+    `💰 <b>Cost:</b> ${escapeHtml(price || 'N/A')}\n\n` +
     `The lot is now available. This alert has been unsubscribed.`;
 
   const BATCH_SIZE = 30;
+  const notifiedChatIds = [];
   for (let i = 0; i < chatIds.length; i += BATCH_SIZE) {
     const batch = chatIds.slice(i, i + BATCH_SIZE);
     const results = await Promise.allSettled(
@@ -128,13 +140,18 @@ async function dispatchNotifications(bot, lotName, locationName, address, operat
       }))
     );
     results.forEach((r, j) => {
-      if (r.status === 'rejected')
+      if (r.status === 'fulfilled') {
+        notifiedChatIds.push(batch[j]);
+      } else {
         console.error(`[poller] Failed to notify chatId=${batch[j]}: ${r.reason?.message}`);
+      }
     });
     if (i + BATCH_SIZE < chatIds.length) await new Promise(res => setTimeout(res, 1000));
   }
 
-  db.removeSubscriptionsForLot(lotName, chargeType);
+  for (const chatId of notifiedChatIds) {
+    db.removeSubscription(chatId, lotName, chargeType);
+  }
 }
 
 // ── Main poll cycle ───────────────────────────────────────────────────────────
@@ -260,4 +277,4 @@ async function runPollCycle(bot) {
   }
 }
 
-module.exports = { runPollCycle, computeAvailabilityWithCounts, fetchEVData };
+module.exports = { runPollCycle, computeAvailabilityWithCounts, fetchEVData, getPriceInfo };

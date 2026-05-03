@@ -16,6 +16,14 @@ const userCooldowns = new Map();
 const COOLDOWN_MS = 2000;
 const ADMIN_CHAT_ID = parseInt(process.env.ADMIN_CHAT_ID, 10);
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function isRateLimited(chatId) {
   if (chatId === ADMIN_CHAT_ID) return false;
   const now = Date.now();
@@ -95,7 +103,7 @@ async function createBot(token) {
     for (const r of rows) {
       const loc = r.location_name || r.lot_name.split('|||')[0];
       const op  = r.operator ? ` | ${operatorLabel(r.operator)}` : '';
-      lines.push(`${r.cnt}× ${loc}${op} (${r.charge_type})`);
+      lines.push(`${r.cnt}× ${escapeHtml(loc)}${escapeHtml(op)} (${r.charge_type})`);
     }
     return ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
   });
@@ -156,15 +164,17 @@ async function createBot(token) {
 
     const lotsWithData = lotsAtVenue.filter(l => l.has_ac || l.has_dc);
     if (lotsWithData.length === 0)
-      return ctx.editMessageText(`No charger data available for <b>${locationName}</b> yet. Please try again shortly.`, { parse_mode: 'HTML' });
+      return ctx.editMessageText(`No charger data available for <b>${escapeHtml(locationName)}</b> yet. Please try again shortly.`, { parse_mode: 'HTML' });
 
     const lat = lotsAtVenue[0]?.latitude;
     const lon = lotsAtVenue[0]?.longitude;
     const mapsUrl = lat && lon ? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}` : null;
-    const lines = [`📍 <b>${locationName}</b>`];
+    const lines = [`📍 <b>${escapeHtml(locationName)}</b>`];
     const address = lotsAtVenue[0]?.address;
     if (address) {
-      const addressDisplay = mapsUrl ? `<a href="${mapsUrl}">${address}</a>` : address;
+      const addressDisplay = mapsUrl
+        ? `<a href="${escapeHtml(mapsUrl)}">${escapeHtml(address)}</a>`
+        : escapeHtml(address);
       lines.push(`🏢 ${addressDisplay}`);
     }
     lines.push('');
@@ -172,14 +182,14 @@ async function createBot(token) {
     const buttonRows = [];
     for (const lot of lotsWithData) {
       const opLabel = operatorLabel(lot.operator) || lot.location_name || lot.name;
-      lines.push(`🔌 <b>${opLabel}</b>`);
+      lines.push(`🔌 <b>${escapeHtml(opLabel)}</b>`);
 
       if (lot.has_ac) {
         const avail = lot.ac_available_count ?? 0;
         const acStr = lot.ac_total > 0
           ? (avail > 0 ? `✅ ${avail}/${lot.ac_total} available` : `❌ 0/${lot.ac_total} available`)
           : (lot.ac_available ? '✅ Available' : '❌ Unavailable');
-        const acCost = lot.ac_price ? ` · ${lot.ac_price}` : '';
+        const acCost = lot.ac_price ? ` · ${escapeHtml(lot.ac_price)}` : '';
         lines.push(`  ⚡ AC — ${acStr}${acCost}`);
       }
       if (lot.has_dc) {
@@ -187,7 +197,7 @@ async function createBot(token) {
         const dcStr = lot.dc_total > 0
           ? (avail > 0 ? `✅ ${avail}/${lot.dc_total} available` : `❌ 0/${lot.dc_total} available`)
           : (lot.dc_available ? '✅ Available' : '❌ Unavailable');
-        const dcCost = lot.dc_price ? ` · ${lot.dc_price}` : '';
+        const dcCost = lot.dc_price ? ` · ${escapeHtml(lot.dc_price)}` : '';
         lines.push(`  🔋 DC — ${dcStr}${dcCost}`);
       }
       lines.push('');
@@ -247,9 +257,9 @@ async function createBot(token) {
     const lines = [
       `Subscribed! You'll be notified when the charger becomes available.`,
       '',
-      `<b>Location:</b> ${locName}`,
+      `<b>Location:</b> ${escapeHtml(locName)}`,
     ];
-    if (opLabel) lines.push(`<b>Operator:</b> ${opLabel}`);
+    if (opLabel) lines.push(`<b>Operator:</b> ${escapeHtml(opLabel)}`);
     lines.push(`<b>Type:</b> ${chargeType}`);
     lines.push('', 'Use /subs to manage your alerts.');
 
