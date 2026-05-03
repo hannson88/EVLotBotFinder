@@ -9,6 +9,12 @@
 
 ## Decision Log
 
+### 2026-05-03: Add Data Source Disclaimer
+
+- Decision: Show a compact LTA/pricing disclaimer on nearby results and venue detail messages.
+- Reason: Availability and price data come from LTA DataMall and may be incomplete or outdated.
+- Scope: Added a shared disclaimer in `src/bot.js` without adding noise to generic bot messages.
+
 ### 2026-05-03: Show Nearby Provider-Level Options
 
 - Decision: Nearby search results are provider/location options rather than aggregated venue rows.
@@ -92,6 +98,7 @@
 
 ### 2026-05-03
 
+- Added LTA DataMall and pricing disclaimer to availability/pricing views.
 - Changed `/nearby` results to provider-level options.
 - Shortened `/nearby` result buttons and made AC/DC open counts explicit.
 - Added AC/DC nearby filters and clarified availability sorting as best chance.

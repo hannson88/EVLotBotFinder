@@ -21,6 +21,7 @@ const WELCOME_MESSAGE =
   `🔍 Type in <b>name / address / postal code</b> to search\n` +
   `📍 /nearby — Chargers near you\n` +
   `🔔 /subs — Subscriptions`;
+const DATA_DISCLAIMER = 'Data: LTA DataMall. Prices may vary; check operator app.';
 
 const userCooldowns = new Map();
 const COOLDOWN_MS = 2000;
@@ -207,6 +208,8 @@ async function createBot(token) {
       ...nearby.map((venue, index) => formatNearbyVenueLine(venue, index, chargeFilter)),
       '',
       'Tap a result to view details.',
+      '',
+      `<i>${DATA_DISCLAIMER}</i>`,
     ];
 
     return lines.join('\n');
@@ -351,6 +354,7 @@ async function createBot(token) {
       ? `${formatTime(globalLastUpdated)} (${formatTimeAgo(globalLastUpdated)})`
       : 'Unknown';
     lines.push(`🕐 <i>Last updated: ${timeStr}</i>`);
+    lines.push(`<i>${DATA_DISCLAIMER}</i>`);
     lines.push('');
     if (buttonRows.length) {
       lines.push('Subscribe to alerts:');
