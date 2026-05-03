@@ -91,3 +91,13 @@ npm start
 - [axios](https://axios-http.com/) — HTTP client for LTA API calls
 - [node-cron](https://github.com/node-cron/node-cron) — poll scheduling
 - [dotenv](https://github.com/motdotla/dotenv) — environment variable loading
+
+## Attribution
+
+This repository is a fork of [alwaysmod/EVLotBot](https://github.com/alwaysmod/EVLotBot).
+
+Original concept and implementation by [alwaysmod](https://github.com/alwaysmod). This fork builds on that Telegram bot for Singapore EV charger availability alerts with additional improvements and experiments.
+
+## License
+
+No explicit license file or package license declaration was present in the upstream repository when this attribution was added. Please check the upstream repository for any later licensing updates before reusing or redistributing the original project code beyond this fork.
